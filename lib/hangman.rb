@@ -69,4 +69,5 @@ class Hangman
   end
 end
 
+# TODO: determine winner, add saved game functionality, check if methods should be instance or class methods
 Hangman.new
