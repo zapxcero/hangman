@@ -25,7 +25,7 @@ class Hangman
   end
 
   def hint_secret_word
-    puts "\nHere's the secret word's length and the guesses you've made."
+    puts "\nHere's the secret word's length (#{@secret_word.length}) and the guesses you've made."
     puts "\nGuesses: #{@user_guesses.join(', ')}\n\n"
     puts "\nWord: \n\n"
     @secret_word.chars.each do |letter|
@@ -43,7 +43,7 @@ class Hangman
     letter = gets.chomp[0]
     if !(@user_guesses.include? letter)
       @user_guesses.push(letter)
-      
+
     else
       clear_terminal
       hint_secret_word
@@ -53,11 +53,9 @@ class Hangman
   end
 
   def winner?
-    if @secret_word.chars.uniq.length == @user_guesses.length
-      if (@user_guesses - @secret_word.chars).empty?
-        puts "\nYou've guessed it! The word is #{@secret_word}.\n\n"
-        @game_running = false
-      end
+    if @secret_word.chars.uniq.length == @user_guesses.length && (@user_guesses - @secret_word.chars).empty?
+      puts "\nYou've guessed it! The word is #{@secret_word}.\n\n"
+      @game_running = false
     end
   end
 
@@ -81,6 +79,7 @@ class Hangman
       @guess -= 1
       break if @guess.zero? || @game_running == false
     end
+    puts "\n\nYou lose! The secret word is #{@secret_word}.\n\n\n" if @guess.zero?
   end
 
   def game
