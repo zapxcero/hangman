@@ -28,6 +28,7 @@ class Hangman
   def hint_secret_word
     puts "\nHere's the secret word's length and the guesses you've made."
     puts "\nGuesses: #{@user_guesses.join(', ')}\n\n"
+    puts "\nWord: \n\n"
     @secret_word.chars.each do |letter|
       if @user_guesses.include? letter
         print "#{letter} "
@@ -41,11 +42,22 @@ class Hangman
   def user_guess_letter
     print "\n\nEnter a letter to (#{@guess}) guess the secret word: "
     letter = gets.chomp[0]
-    @user_guesses.push(letter) unless @user_guesses.include? letter
+    if !(@user_guesses.include? letter)
+      @user_guesses.push(letter)
+    else
+      clear_terminal
+      hint_secret_word
+      puts "\nYou have already entered that letter before!\n"
+      user_guess_letter
+    end
   end
 
   def winner?
     pass
+  end
+
+  def clear_terminal
+    system 'clear'
   end
 
   def main_menu
@@ -54,17 +66,23 @@ class Hangman
     gets.chomp.to_i
   end
 
+  def round
+    loop do
+      clear_terminal
+      hint_secret_word
+      user_guess_letter
+      @guess -= 1
+      break if @guess.zero? || @game_running == false
+    end
+  end
+
   def game
     case main_menu
     when 1
-      loop do
-        hint_secret_word
-        user_guess_letter
-        @guess -= 1
-        break if @guess.zero? || @game_running == false
-      end
+      round
     when 2
-      puts "Saved Game!"
+      clear_terminal
+      puts 'Saved Game!'
     end
   end
 end
