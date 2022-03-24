@@ -7,7 +7,6 @@ class Hangman
     @game_running = true
     @dict = load_dict
     @secret_word = select_secret_word
-    p @secret_word
     @user_guesses = []
     game
   end
@@ -44,6 +43,7 @@ class Hangman
     letter = gets.chomp[0]
     if !(@user_guesses.include? letter)
       @user_guesses.push(letter)
+      
     else
       clear_terminal
       hint_secret_word
@@ -53,7 +53,12 @@ class Hangman
   end
 
   def winner?
-    pass
+    if @secret_word.chars.uniq.length == @user_guesses.length
+      if (@user_guesses - @secret_word.chars).empty?
+        puts "\nYou've guessed it! The word is #{@secret_word}.\n\n"
+        @game_running = false
+      end
+    end
   end
 
   def clear_terminal
@@ -71,6 +76,8 @@ class Hangman
       clear_terminal
       hint_secret_word
       user_guess_letter
+      clear_terminal
+      winner?
       @guess -= 1
       break if @guess.zero? || @game_running == false
     end
@@ -87,5 +94,5 @@ class Hangman
   end
 end
 
-# TODO: determine winner, add saved game functionality, check if methods should be instance or class methods
+# TODO: add saved game functionality
 Hangman.new
