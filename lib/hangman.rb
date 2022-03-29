@@ -1,14 +1,45 @@
 # frozen_string_literal: true
 
+require 'json'
+
+module BasicSerializable
+  @@serializer = JSON
+
+  def serialize
+    obj = {}
+    instance_variables.map do |var|
+      next if var.to_s == '@dict'
+      next if var.to_s == '@game_running'
+
+      obj[var] = instance_variable_get(var)
+    end
+
+    @@serializer.dump obj
+  end
+
+  def unserialize(string)
+    obj = @@serializer.parse(string)
+    obj.each_key do |key|
+      instance_variable_set(key, obj[key])
+    end
+  end
+end
+
 # Plays a game of Hangman
 class Hangman
-  def initialize
-    @guess = 10
+  include BasicSerializable
+  def initialize(guess = 10, user_guesses = [], secret_word = '')
+    @guess = guess
     @game_running = true
     @dict = load_dict
-    @secret_word = select_secret_word
-    @user_guesses = []
-    game
+    @secret_word = if secret_word == ''
+                     select_secret_word
+                   else
+                     secret_word
+                   end
+    puts @secret_word
+
+    @user_guesses = user_guesses
   end
 
   def load_dict
@@ -38,10 +69,26 @@ class Hangman
     print "\n"
   end
 
+  def save
+    @game_running = false
+    saved = File.open('save_game.json', 'w')
+    saved.puts serialize
+  end
+
+  def load
+    file = File.open('save_game.json', 'r')
+    contents = file.read
+    obj = unserialize(contents)
+    Hangman.new(obj['@guess'], obj['@user_guesses'], obj['@secret_word']).round
+  end
+
   def user_guess_letter
-    print "\n\nEnter a letter to (#{@guess}) guess the secret word: "
+    print "\n\nEnter a letter to (#{@guess}) guess the secret word or type '0' to save the game: "
     letter = gets.chomp[0]
-    if !(@user_guesses.include? letter)
+    if letter == '0'
+      save
+    elsif !(@user_guesses.include? letter)
+
       @user_guesses.push(letter)
 
     else
@@ -53,7 +100,7 @@ class Hangman
   end
 
   def winner?
-    if @secret_word.chars.uniq.length == @user_guesses.length && (@user_guesses - @secret_word.chars).empty?
+    if @secret_word.chars.uniq.length <= @user_guesses.length && (@user_guesses - @secret_word.chars).empty?
       puts "\nYou've guessed it! The word is #{@secret_word}.\n\n"
       @game_running = false
     end
@@ -88,10 +135,10 @@ class Hangman
       round
     when 2
       clear_terminal
-      puts 'Saved Game!'
+      load
     end
   end
 end
 
-# TODO: add saved game functionality
-Hangman.new
+# TODO: GENERATE UNIQ RANDOM FILENAME FOR SAVED GAMES. 
+Hangman.new.game
