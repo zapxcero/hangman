@@ -71,15 +71,26 @@ class Hangman
 
   def save
     @game_running = false
-    saved = File.open('save_game.json', 'w')
+    file_name = "save_#{Random.new_seed}.json" 
+    saved = File.open(file_name, 'w')
     saved.puts serialize
   end
 
   def load
-    file = File.open('save_game.json', 'r')
+    file = File.open(list_saves, 'r')
     contents = file.read
     obj = unserialize(contents)
     Hangman.new(obj['@guess'], obj['@user_guesses'], obj['@secret_word']).round
+  end
+
+  def list_saves
+    path = Dir['./**/*.json']
+    path.each_with_index do |save, index|
+      puts "#{index}. #{save}"
+    end
+    puts "Enter which save file to load: "
+    choice = gets.chomp.to_i
+    path[choice].to_s
   end
 
   def user_guess_letter
@@ -140,5 +151,6 @@ class Hangman
   end
 end
 
-# TODO: GENERATE UNIQ RANDOM FILENAME FOR SAVED GAMES. 
+# TODO: ALL NEED IS SOME FIXING
+
 Hangman.new.game
