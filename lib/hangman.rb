@@ -1,156 +1,131 @@
 # frozen_string_literal: true
 
-require 'json'
-
-module BasicSerializable
-  @@serializer = JSON
-
-  def serialize
-    obj = {}
-    instance_variables.map do |var|
-      next if var.to_s == '@dict'
-      next if var.to_s == '@game_running'
-
-      obj[var] = instance_variable_get(var)
-    end
-
-    @@serializer.dump obj
-  end
-
-  def unserialize(string)
-    obj = @@serializer.parse(string)
-    obj.each_key do |key|
-      instance_variable_set(key, obj[key])
-    end
-  end
-end
-
-# Plays a game of Hangman
+require 'yaml'
+require_relative 'display'
+require_relative 'save_load'
+# Hangman Game
 class Hangman
-  include BasicSerializable
-  def initialize(guess = 10, user_guesses = [], secret_word = '')
-    @guess = guess
-    @game_running = true
-    @dict = load_dict
-    @secret_word = if secret_word == ''
-                     select_secret_word
-                   else
-                     secret_word
-                   end
-    puts @secret_word
+  include Load
+  include Display
+  attr_accessor :tries, :game_running, :dict, :secret_word, :guesses_list
 
-    @user_guesses = user_guesses
+  def initialize
+    @tries = 10
+    @game_running = true
+    @dict = dict_filter
+    @secret_word = dict_sample
+    @guesses_list = []
+
+    puts secret_word
   end
 
-  def load_dict
+  private
+
+  # DICTIONARY
+  def dict_load
     File.open('dictionary.txt').readlines
   end
 
-  def select_secret_word
-    random_word = @dict.sample.chomp
-    if random_word.length >= 5 && random_word.length <= 12
-      random_word
-    else
-      select_secret_word
-    end
+  def word_length?(word)
+    word.length >= 5 && word.length <= 12
   end
 
-  def hint_secret_word
-    puts "\nHere's the secret word's length (#{@secret_word.length}) and the guesses you've made."
-    puts "\nGuesses: #{@user_guesses.join(', ')}\n\n"
-    puts "\nWord: \n\n"
-    @secret_word.chars.each do |letter|
-      if @user_guesses.include? letter
-        print "#{letter} "
-      else
-        print '_ '
-      end
-    end
-    print "\n"
+  def dict_filter
+    dict_load.collect { |word| word if word_length?(word) }
   end
 
-  def save
-    @game_running = false
-    file_name = "save_#{Random.new_seed}.json" 
-    saved = File.open(file_name, 'w')
-    saved.puts serialize
+  def dict_sample
+    dict.sample.chomp
   end
 
-  def load
-    file = File.open(list_saves, 'r')
-    contents = file.read
-    obj = unserialize(contents)
-    Hangman.new(obj['@guess'], obj['@user_guesses'], obj['@secret_word']).round
+  # GUESSES
+  def guesses_to_s
+    guesses_list.join(', ')
   end
 
-  def list_saves
-    path = Dir['./**/*.json']
-    path.each_with_index do |save, index|
-      puts "#{index}. #{save}"
-    end
-    puts "Enter which save file to load: "
-    choice = gets.chomp.to_i
-    path[choice].to_s
+  def all_guesses
+    secret_word.chars.collect { |letter| guesses_list.include?(letter) ? letter.to_s : '_ ' }.join('')
   end
 
-  def user_guess_letter
-    print "\n\nEnter a letter to (#{@guess}) guess the secret word or type '0' to save the game: "
-    letter = gets.chomp[0]
+  def input_guess
+    puts display_input
+    letter = input_choice
     if letter == '0'
       save
-    elsif !(@user_guesses.include? letter)
-
-      @user_guesses.push(letter)
-
+    elsif !letter_guessed?(letter)
+      guesses_list.push(letter)
     else
-      clear_terminal
-      hint_secret_word
-      puts "\nYou have already entered that letter before!\n"
-      user_guess_letter
+      letter_new
+      input_guess
     end
+  end
+
+  # LETTER
+  def letter_new
+    clear_terminal
+    puts display_hint
+    puts display_dupli
+  end
+
+  def letter_guessed?(letter)
+    guesses_list.include? letter
+  end
+
+  def input_choice
+    gets.chomp.chr
+  end
+
+  # MENU
+
+  def menu
+    puts display_menu
+    menu_choice
+  end
+
+  def menu_choice
+    gets.chomp.to_i
+  end
+
+  # GAME
+
+  def game_end
+    self.game_running = false
   end
 
   def winner?
-    if @secret_word.chars.uniq.length <= @user_guesses.length && (@user_guesses - @secret_word.chars).empty?
-      puts "\nYou've guessed it! The word is #{@secret_word}.\n\n"
-      @game_running = false
-    end
-  end
+    return unless secret_word.chars.uniq.length <= guesses_list.length && (guesses_list - secret_word.chars).empty?
 
-  def clear_terminal
-    system 'clear'
-  end
-
-  def main_menu
-    puts "Do you want to:\n\n[1]Start a new game\n[2]Resume a saved game?\n\n"
-    print 'Enter choice: '
-    gets.chomp.to_i
+    puts display_winner
+    game_end
   end
 
   def round
     loop do
       clear_terminal
-      hint_secret_word
-      user_guess_letter
+      puts display_hint
+      input_guess
       clear_terminal
       winner?
-      @guess -= 1
-      break if @guess.zero? || @game_running == false
+      self.tries -= 1
+      break if tries.zero? || game_running == false
     end
-    puts "\n\nYou lose! The secret word is #{@secret_word}.\n\n\n" if @guess.zero?
+    puts "\n\nYou lose! The secret word is #{secret_word}.\n\n\n" if tries.zero?
   end
 
-  def game
-    case main_menu
+  public
+
+  def game_start
+    case menu
     when 1
       round
     when 2
       clear_terminal
-      load
+      run_load
     end
   end
 end
 
 # TODO: ALL NEED IS SOME FIXING
+# TOOD: if only 1 guesses remain and you correctly answer, it still loses
 
-Hangman.new.game
+Hangman.new.game_start
